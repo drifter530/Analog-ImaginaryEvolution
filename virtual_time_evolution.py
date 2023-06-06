@@ -13,7 +13,7 @@ n_basis=3
 basis='legendre'
 
 T=10
-dt0=0.05
+dt0=0.5
 T0=20
 dt1=0.005
 
@@ -35,7 +35,7 @@ Y=np.array([[0,-1j],[1j,0]])
 Z=np.array([[1,0],[0,-1]])
 I=np.array([[1,0],[0,1]])
 
-spectral_coeff=np.array([0,0,0,0,0,0])
+spectral_coeff=np.array([1,1,1,1,1,1])
 
 Hsys=e1/2*(np.kron(I,I)-np.kron(Z,I))+e2/2*(np.kron(I,I)-np.kron(I,Z))+J12*(np.kron(Y,Y)+np.kron(X,X))/4
 
@@ -72,7 +72,7 @@ def trotter(t_start,t_end,psi):
         """
         Trotterization of the quantum state under Hamiltonian H(t)
         """
-        dt=0.1
+        dt=0.13
         n_step=int(abs(t_end-t_start)/dt)+1
                
         dt=(t_end-t_start)/n_step
@@ -212,7 +212,18 @@ def computeC():
             C[i*n_basis+j]=-np.mean(z)*T
     return C
 
-
+def generateH():
+    pauli2=[np.kron(I,I),np.kron(I,X),np.kron(I,Y),np.kron(I,Z)
+            ,np.kron(X,I),np.kron(X,X),np.kron(X,Y),np.kron(X,Z),
+            np.kron(Y,I),np.kron(Y,X),np.kron(Y,Y),np.kron(Y,Z),
+            np.kron(Z,I),np.kron(Z,X),np.kron(Z,Y),np.kron(Z,Z)]
+    x=np.random.uniform(-1,1,16)
+    H=np.zeros((4,4),dtype=complex)
+    for i in range(16):
+        H+=x[i]*pauli2[i]
+    E0=max(np.linalg.eigvals(H))
+    H=H/E0
+    return H
 
 
 t=time.localtime()
@@ -237,44 +248,33 @@ psi_i=trotter(0,T,psi0)
 
 file.write('\n'+"initial state:"+str(psi_i)+'\n'+'\n'+'\n'+'\n'+'\n')
 '''
-I=np.array([[1,0],[0,1]])
-I2=np.kron(I,I)
-U_sys=expm(-1j*Hsys*T)
-psi_t=U_sys@psi0
+dt0=0.7
+epoches=120
+dE=np.zeros(epoches)
+x=np.linspace(0,epoches,epoches)
 
+#Hc=generateH()
 E,p=np.linalg.eig(Hc)
+
 E0=np.min(E)
-dE=np.zeros(400)
-x=np.linspace(0,400,400)
+#psi_i=np.array()
 
-for T in [3,6,8,10,12,15,20]:
-
-    for i in range(400):
-        print('T='+str(T)+"    "+str(i))
+for T in [10,15,20,25,30]:
+    spectral_coeff=np.array([0,0,0,0,0,0])
+    for i in range(epoches):
+            
         M,C=computeMC()
-
         spectral_coeff=spectral_coeff+dt0*np.linalg.pinv(M)@C
         psi_p=trotter(0,T,psi0)
-        dE[i]=-np.log(abs(np.conjugate(psi_p)@Hc@psi_p-E0))/np.log(10)
-        '''
-        if((i+1)%20==0):
-            file.write("t="+str(0.05*(i+1))+":"+'\n')
-            file.write("coeff:"+str(spectral_coeff)+'\n')
-            file.write("psi:"+str(psi_p)+'\n')
-            for i in range(200):
-                Hct=(np.conjugate(psi_t)@Hc@psi_t)*I2-Hc
-                dU=expm(Hct*dt1)
-                psi_t=dU@psi_t
-            file.write("psi_t:"+str(psi_t)+'\n')
-        '''
+        dE[i]=np.log(abs(np.conjugate(psi_p)@Hc@psi_p-E0))/np.log(10)
+        print('T='+str(T)+"   epoch="+str(i)+"   lgloss="+str(dE[i]))
+
     plt.plot(x,dE,label='T='+str(T))
 
 plt.legend()
-plt.savefig('log\\figure\\NGD(000000).png')
+plt.savefig('log\\figure\\NGD(lr=0.7,H2,000000).png')
 
 
 #file.close()
     
-    
-
 
