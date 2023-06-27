@@ -9,16 +9,13 @@ import math
 from scipy.linalg import expm
 
 
-n_basis=3
+n_basis=4
 basis='legendre'
 
-T=10
-dt0=0.5
-T0=20
-dt1=0.005
 
-point_M=36
-point_C=10
+dt0=0.25
+epoches=120
+
 
 a0=-1.0524
 a1=-0.0113
@@ -35,11 +32,10 @@ Y=np.array([[0,-1j],[1j,0]])
 Z=np.array([[1,0],[0,-1]])
 I=np.array([[1,0],[0,1]])
 
-spectral_coeff=np.array([1,1,1,1,1,1])
 
 Hsys=e1/2*(np.kron(I,I)-np.kron(Z,I))+e2/2*(np.kron(I,I)-np.kron(I,Z))+J12*(np.kron(Y,Y)+np.kron(X,X))/4
 
-psi0=np.array([1/np.sqrt(2),1/np.sqrt(2),0,0])
+
 
 Hs=[np.kron(X,I),np.kron(I,X)]
 
@@ -58,6 +54,12 @@ def legendre(n,x):
         return x
     elif n==2:
         return (3*x**2-1)/2
+    elif n==3:
+        return (5*x**3-3*x)/2
+    elif n==4:
+        return (35*x**4-30*x**2+3)/8
+    elif n==5:
+        return (63*x**5-70*x**3+15*x)/8
 
 def u(i,t):
     u=0
@@ -122,9 +124,9 @@ def computeMC(n=10):
 
     M=np.zeros((2*n_basis,2*n_basis))
     for i1 in range(2):
-        for j1 in range(3):
+        for j1 in range(4):
             for i2 in range(2):
-                for j2 in range(3):
+                for j2 in range(4):
                     z=np.zeros(n*n)
                     for t1 in range(n):
                         for t2 in range(n):
@@ -136,10 +138,10 @@ def computeMC(n=10):
     psi_f=trotter(0,T,psi0)
     C=np.zeros(2*n_basis)
     for i in range(2):
-        for j in range(3):
-            z=np.zeros(10)
-            for t in range(10):
-                du=0.5*(1+u(i,ti[t]))*(1-u(i,ti[t]))*legendre(j,(2*t-9)/10)
+        for j in range(4):
+            z=np.zeros(n)
+            for t in range(n):
+                du=0.5*(1+u(i,ti[t]))*(1-u(i,ti[t]))*legendre(j,(2*t-n+1)/n)
                 z[t]=(du*np.conjugate(psi_f)@Hc@psi_it[i][t]).imag
             C[i*n_basis+j]=-np.mean(z)*T
 
@@ -248,8 +250,8 @@ psi_i=trotter(0,T,psi0)
 
 file.write('\n'+"initial state:"+str(psi_i)+'\n'+'\n'+'\n'+'\n'+'\n')
 '''
-dt0=0.7
-epoches=120
+
+
 dE=np.zeros(epoches)
 x=np.linspace(0,epoches,epoches)
 
@@ -259,11 +261,13 @@ E,p=np.linalg.eig(Hc)
 E0=np.min(E)
 #psi_i=np.array()
 
-for T in [10,15,20,25,30]:
-    spectral_coeff=np.array([0.1,0,0,-0.1,0,0])
+for T in [10]:
+    psi0=np.random.rand(2**2)
+    psi0=psi0/np.linalg.norm(psi0)
+    spectral_coeff=np.zeros(2*n_basis)
     for i in range(epoches):
             
-        M,C=computeMC()
+        M,C=computeMC() 
         spectral_coeff=spectral_coeff+dt0*np.linalg.pinv(M)@C
         psi_p=trotter(0,T,psi0)
         dE[i]=np.log(abs(np.conjugate(psi_p)@Hc@psi_p-E0))/np.log(10)
@@ -272,7 +276,7 @@ for T in [10,15,20,25,30]:
     plt.plot(x,dE,label='T='+str(T))
 
 plt.legend()
-plt.savefig('log\\figure\\NGD(lr=0.7,H2,100100).png')
+plt.savefig('log\\figure_2\\NGD(lr=0.2,H2,n_b={}-2).png'.format(n_basis))
 
 
 #file.close()
